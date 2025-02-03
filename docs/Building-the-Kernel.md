@@ -55,7 +55,184 @@ cd linux-socfpga
 git branch -a
 
 # Use the branch you prefer.
-git checkout socfpga-5.12
+git checkout socfpga-6.6.37-lts
+```
+
+### Add the DE10-Nano Configuration files to the Kernel
+
+There are a few changes to the kernel source that need to be made, such as adding a device tree file to the kernel for the DE10-Nano and changing the configuration to use the heartbeat LED.
+
+First open the file socfpga_cyclone5_de10_nano_soc.dts with the command:
+
+```bash
+nano arch/arm/boot/dts/intel/socfpga/socfpga_cyclone5_de10_nano_soc.dts
+```
+
+Copy the following into the file and save it:
+
+```
+/*
+ * Copyright Intel Corporation (C) 2017. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms and conditions of the GNU General Public License,
+ * version 2, as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
+ *
+ * You should have received a copy of the GNU General Public License along with
+ * this program.  If not, see <http://www.gnu.org/licenses/>.
+ */
+
+#include "socfpga_cyclone5.dtsi"
+
+/ {
+	model = "Terasic DE10-Nano";
+	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+
+	chosen {
+		bootargs = "earlyprintk";
+		stdout-path = "serial0:115200n8";
+	};
+
+	memory {
+		name = "memory";
+		device_type = "memory";
+		reg = <0x0 0x40000000>; /* 1GB */
+	};
+
+	aliases {
+		ethernet0 = &gmac1;
+	};
+
+	regulator_3_3v: 3-3-v-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "3.3V";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	leds {
+		compatible = "gpio-leds";
+		hps0 {
+			label = "hps_led0";
+			gpios = <&portb 24 0>;
+			linux,default-trigger = "heartbeat";
+		};
+	};
+
+	keys {
+		compatible = "gpio-keys";
+		hps0 {
+			label = "hps_key0";
+			gpios = <&portb 25 0>;
+			linux,code = <63>;
+			debounce-interval = <50>;
+		};
+	};
+};
+
+&gmac1 {
+	status = "okay";
+	phy-mode = "rgmii";
+
+	txd0-skew-ps = <0>; /* -420ps */
+	txd1-skew-ps = <0>; /* -420ps */
+	txd2-skew-ps = <0>; /* -420ps */
+	txd3-skew-ps = <0>; /* -420ps */
+	rxd0-skew-ps = <420>; /* 0ps */
+	rxd1-skew-ps = <420>; /* 0ps */
+	rxd2-skew-ps = <420>; /* 0ps */
+	rxd3-skew-ps = <420>; /* 0ps */
+	txen-skew-ps = <0>; /* -420ps */
+	txc-skew-ps = <1860>; /* 960ps */
+	rxdv-skew-ps = <420>; /* 0ps */
+	rxc-skew-ps = <1680>; /* 780ps */
+
+	max-frame-size = <3800>;
+};
+
+&gpio0 {
+	status = "okay";
+};
+
+&gpio1 {
+	status = "okay";
+};
+
+&gpio2 {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+	speed-mode = <0>;
+
+	adxl345: adxl345@0 {
+		compatible = "adi,adxl34x";
+		reg = <0x53>;
+
+		interrupt-parent = <&portc>;
+		interrupts = <3 2>;
+	};
+};
+
+&mmc0 {
+	vmmc-supply = <&regulator_3_3v>;
+	vqmmc-supply = <&regulator_3_3v>;
+};
+
+&uart0 {
+	status = "okay";
+};
+
+&usb1 {
+	status = "okay";
+};
+```
+
+For the build system to see the dts file, the Makefile corresponding to it needs to be modified. Open the Makefile with the following command:
+
+```bash
+nano arch/arm/boot/dts/intel/socfpga/Makefile
+```
+
+Add the following to the file just below the dtb for the DE0-Nano:
+
+```bash
+socfpga_cyclone5_de10_nano_soc.dtb \
+```
+
+Lastly, add the following to the file socfpga_defconfig file:
+
+```bash
+CONFIG_KEYBOARD_GPIO_POLLED=y
+CONFIG_INPUT_POLLDEV=y
+CONFIG_KEYBOARD_GPIO=y
+CONFIG_INPUT_MISC=y
+CONFIG_INPUT_ADXL34X=y
+CONFIG_INPUT_ADXL34X_I2C=y
+CONFIG_INPUT_ADXL34X_SPI=y
+CONFIG_LEDS_TRIGGER_ONESHOT=y
+CONFIG_LEDS_TRIGGER_HEARTBEAT=y
+CONFIG_LEDS_TRIGGER_BACKLIGHT=y
+CONFIG_LEDS_TRIGGER_GPIO=y
+CONFIG_LEDS_TRIGGER_DEFAULT_ON=y
+CONFIG_FONT_8x8=y
+CONFIG_FONT_8x16=y
+CONFIG_LOGO=y
+CONFIG_LOGO_LINUX_MONO=y
+CONFIG_LOGO_LINUX_VGA16=y
+CONFIG_LOGO_LINUX_CLUT224=y
+CONFIG_FONT_SUPPORT=y
+CONFIG_FB_CMDLINE=y
+CONFIG_FB_SIMPLE=y
+CONFIG_FB_CFB_FILLRECT=y
+CONFIG_FB_CFB_COPYAREA=y
+CONFIG_FB_CFB_IMAGEBLIT=y
 ```
 
 ### Configure the Kernel
