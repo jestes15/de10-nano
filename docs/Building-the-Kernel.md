@@ -62,7 +62,7 @@ git checkout socfpga-6.6.37-lts
 
 There are a few changes to the kernel source that need to be made, such as adding a device tree file to the kernel for the DE10-Nano and changing the configuration to use the heartbeat LED.
 
-First open the file socfpga_cyclone5_de10_nano_soc.dts with the command:
+First open the file `socfpga_cyclone5_de10_nano_soc.dts` with the command:
 
 ```bash
 nano arch/arm/boot/dts/intel/socfpga/socfpga_cyclone5_de10_nano_soc.dts
@@ -194,7 +194,7 @@ Copy the following into the file and save it:
 };
 ```
 
-For the build system to see the dts file, the Makefile corresponding to it needs to be modified. Open the Makefile with the following command:
+For the build system to see the dts file, the Makefile corresponding to it needs to be modified. Open the `Makefile` with the following command:
 
 ```bash
 nano arch/arm/boot/dts/intel/socfpga/Makefile
@@ -206,7 +206,7 @@ Add the following to the file just below the dtb for the DE0-Nano:
 socfpga_cyclone5_de10_nano_soc.dtb \
 ```
 
-Lastly, add the following to the file socfpga_defconfig file:
+Lastly, add the following to the file `socfpga_defconfig` file:
 
 ```bash
 CONFIG_KEYBOARD_GPIO_POLLED=y
