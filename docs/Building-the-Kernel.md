@@ -168,21 +168,38 @@ Copy the following into the file and save it:
 };
 
 &i2c0 {
-	status = "okay";
-	speed-mode = <0>;
+        status = "okay";
+        speed-mode = <0>;
 
-	adxl345: adxl345@0 {
-		compatible = "adi,adxl34x";
-		reg = <0x53>;
+        adxl345: adxl345@53 {
+                compatible = "adi,adxl34x";
+                reg = <0x53>;
 
-		interrupt-parent = <&portc>;
-		interrupts = <3 2>;
-	};
+                interrupt-parent = <&portc>;
+                interrupts = <3 2>;
+        };
 };
+
+&i2c1 {
+        status = "okay";
+        speed-mode = <0>;
+};
+
+&i2c2 {
+        status = "okay";
+        speed-mode = <0>;
+};
+
+&i2c3 {
+        status = "okay";
+        speed-mode = <0>;
+};
+
 
 &mmc0 {
 	vmmc-supply = <&regulator_3_3v>;
 	vqmmc-supply = <&regulator_3_3v>;
+	status = "okay";
 };
 
 &uart0 {
@@ -206,7 +223,7 @@ Add the following to the file just below the dtb for the DE0-Nano:
 socfpga_cyclone5_de10_nano_soc.dtb \
 ```
 
-Lastly, add the following to the file `socfpga_defconfig` file:
+Lastly, add the following to the file `arch/arm/configs/socfpga_defconfig` file:
 
 ```bash
 CONFIG_KEYBOARD_GPIO_POLLED=y
@@ -293,7 +310,7 @@ You can set up the necessary options needed for WIFI as explained [here](./%5BOp
 Now we can finally build the kernel image. Use the following command to create a kernel image called `zImage`:
 
 ```bash
-make ARCH=arm LOCALVERSION=zImage -j 24
+make ARCH=arm LOCALVERSION=zImage -j 12
 ```
 
 If it makes any complaints about `bc` not found or `flex` not found, install that utility using `sudo apt install <library>`.
