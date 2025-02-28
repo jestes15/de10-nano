@@ -13,6 +13,7 @@
   - [Configuring](#configuring)
     - [Part 1 - Customizing the bootloader for the DE10-Nano](#part-1---customizing-the-bootloader-for-the-de10-nano)
       - [Creating a new branch](#creating-a-new-branch)
+	  - [Add I2C Buses to DTS File](#add-i2c-buses-to-dts-file)
       - [Configure U-Boot to flash FPGA automatically at boot time](#configure-u-boot-to-flash-fpga-automatically-at-boot-time)
       - [Asssign a permanent mac address to the ethernet device](#asssign-a-permanent-mac-address-to-the-ethernet-device)
     - [Part 2 - Finish the configuration](#part-2---finish-the-configuration)
@@ -55,25 +56,25 @@ This step will also generate the Secondary Program Loader (SPL) along with the b
 
 ### Getting the sources
 
-There are two source repositories for U-Boot - the official [U-Boot repo](https://github.com/u-boot/u-boot) and the [altera fork](https://github.com/altera-opensource/u-boot-socfpga) of the U-Boot repo. You can use either of them and honestly, I don't know if any difference exists. For this guide, we will be using the official U-Boot repo because a [patch](https://lists.denx.de/pipermail/u-boot/2019-April/367258.html) had been submitted for it and it worked fine when I tested it.
+There are two source repositories for U-Boot - the official [U-Boot repo](https://github.com/u-boot/u-boot) and the [altera fork](https://github.com/altera-opensource/u-boot-socfpga) of the U-Boot repo. You can use either of them, but the ALtera fork has code specific to SoC FPGAs, but is mostly the same as the official repository. For this guide, we will be using the Altera fork and modifying it further.
 
 Clone the repository:
 
 ```bash
 cd $DEWD
-git clone https://github.com/u-boot/u-boot.git
+https://github.com/altera-opensource/u-boot-socfpga.git
 ```
 
-List all the tags and select a release that you want to use. For this guide, I used the latest stable release `v2021.07`:
+List all the tags and select a release that you want to use. For this guide, I used the latest stable release that worked `socfpga_v2024.07`:
 
 ```bash
-cd $DEWD/u-boot
+cd $DEWD/u-boot-socfpga
 
 # List all available tags.
 git tag
 
 # Checkout the desired release.
-git checkout v2021.07
+git checkout socfpga_v2024.07
 ```
 
 ### Configuring
@@ -82,6 +83,7 @@ git checkout v2021.07
 
 Here we will make a few changes to the source code to make it work more nicely with our DE10-Nano, viz.,
 
+- Enable 4 I2C busses, one for the ADXL345 and one for the HDMI controller
 - Configure U-Boot to flash FPGA automatically at boot time.
 - Assign a permanent mac address to the ethernet device.
 
@@ -92,8 +94,74 @@ These steps are optional i.e. you can skip them and your bootloader will work gr
 We want to keep our changes separate from the branch synced with the repo. So let's create a new branch:
 
 ```bash
-git checkout -b v2021.07_mine_fpga_boot_mac
+git checkout -b socfpga_v2024.07_custom_configuration
 ```
+
+##### Add I2C Buses to DTS File
+
+A DTS File, or a Devicetree Control file, provides run-time configuration of U-Boot via a flattened devcietree. This feature makes it possible for a single binary to support multiple development boards.
+
+We will edit the following file and add the required information:
+
+```bash
+cd $DEWD/u-boot-socfpga
+nano arch/arm/dts/socfpga_cyclone5_de10_nano.dts
+```
+
+Near the end of the file, look for the lines:
+
+```bash
+&portc {
+	bank-name = "portc";
+};
+
+&mmc0 {
+	status = "okay";
+	bootph-all;
+};
+```
+
+Between portc and mmc0 add the following:
+
+```bash
+&i2c0 {
+	status = "okay";
+	clock-frequency = <100000>;
+
+	adxl345: adxl345@53 {
+		compatible = "adi,adxl345";
+		reg = <0x53>;
+
+		interrupt-parent = <&portc>;
+		interrupts = <3 2>;
+	};
+};
+
+&i2c1 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&i2c2 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
+
+&i2c3 {
+	status = "okay";
+	clock-frequency = <100000>;
+};
+```
+
+By adding these to the Devicetree file we enable all four I2C buses and set their clock frequency. We also add a device, the ADXL345, and specify its I2C address and interrupt port.
+
+After making these changes, you can save them via:
+
+```bash
+git add .
+git commit -m "Added mac address"
+```
+
 
 ##### Configure U-Boot to flash FPGA automatically at boot time
 
@@ -103,68 +171,80 @@ We will edit the following file for this:
 
 ```bash
 cd $DEWD/u-boot
-nano include/config_distro_bootcmd.h
+nano include/configs/socfpga_de10_nano.h
 ```
 
 Towards the end of the file, look for the following lines:
 
 ```bash
-  BOOT_TARGET_DEVICES(BOOTENV_DEV)                                  \
-  \
-  "distro_bootcmd=" BOOTENV_SET_SCSI_NEED_INIT                      \
-    BOOTENV_SET_NVME_NEED_INIT                                \
-    BOOTENV_SET_IDE_NEED_INIT                                 \
-    BOOTENV_SET_VIRTIO_NEED_INIT                              \
-    "for target in ${boot_targets}; do "                      \
-      "run bootcmd_${target}; "                         \
-    "done\0"
+/* Memory configurations */
+#define PHYS_SDRAM_1_SIZE		0x40000000	/* 1GiB */
 
-#ifndef CONFIG_BOOTCOMMAND
-#define CONFIG_BOOTCOMMAND "run distro_bootcmd"
-#endif
+/* The rest of the configuration is shared */
+#include <configs/socfpga_common.h>
 ```
 
-We will modify the variable `distro_bootcmd` to load the FPGA design from the FAT partition. So modify it to look like this:
+We will add configuration settings to load the FPGA at boot. So modify it to look like this:
 
 ```bash
-  BOOT_TARGET_DEVICES(BOOTENV_DEV)                                  \
-  \
-  "distro_bootcmd= " \
-    "if test -e mmc 0:1 u-boot.scr; then " \
-      "echo --- Found u-boot.scr ---; " \
-      "fatload mmc 0:1 0x2000000 u-boot.scr; " \
-      "source 0x2000000; " \
-    "elif test -e mmc 0:1 soc_system.rbf; then " \
-      "echo --- Programming FPGA ---; " \
-      "fatload mmc 0:1 0x2000000 soc_system.rbf; " \
-      "fpga load 0 0x2000000 0x700000; " \
-    "else " \
-      "echo u-boot.scr and soc_system.rbf not found in fat.; " \
-    "fi; " \
-    BOOTENV_SET_SCSI_NEED_INIT                      \
-    BOOTENV_SET_NVME_NEED_INIT                                \
-    BOOTENV_SET_IDE_NEED_INIT                                 \
-    BOOTENV_SET_VIRTIO_NEED_INIT                              \
-    "for target in ${boot_targets}; do "                      \
-      "run bootcmd_${target}; "                         \
-    "done\0"
+/* Memory configurations */
+#define PHYS_SDRAM_1_SIZE		0x40000000	/* 1GiB */
 
-#ifndef CONFIG_BOOTCOMMAND
-#define CONFIG_BOOTCOMMAND "run distro_bootcmd"
+#define CONFIG_BOOTFILE		"zImage"
+#define CONFIG_BOOTARGS		"console=ttyS0," __stringify(CONFIG_BAUDRATE)
+
+#ifndef CFG_EXTRA_ENV_SETTINGS
+#define CFG_EXTRA_ENV_SETTINGS \
+	"verify=n\0" \
+	"bootimage=" CONFIG_BOOTFILE "\0" \
+	"fdt_addr=100\0" \
+	"fdtfile=" CONFIG_DEFAULT_FDT_FILE "\0" \
+	"bootm_size=0xa000000\0" \
+	"kernel_addr_r="__stringify(CONFIG_SYS_LOAD_ADDR)"\0" \
+	"fdt_addr_r=0x02000000\0" \
+	"scriptaddr=0x02100000\0" \
+	"scriptfile=u-boot.scr\0" \
+	"fpga_file=soc_system.rbf\0" \
+    "fatscript=" \
+		"if test -e mmc 0:1 ${scriptfile}; then " \
+			"echo --- Found ${scriptfile} ---; " \
+			"load mmc 0:1 ${scriptaddr} ${scriptfile}; " \
+        	"source ${scriptaddr}; " \
+		"fi;\0" \
+	"pxefile_addr_r=0x02200000\0" \
+	"ramdisk_addr_r=0x02300000\0" \
+    "socfpga_legacy_reset_compat=1\0" \
+	"prog_core=if load mmc 0:1 ${loadaddr} fit_spl_fpga.itb;" \
+		"then fpga loadmk 0 ${loadaddr}:fpga-core-1; fi\0" \
+	"fpga_cfg=" \
+		"env exists fpga_file || setenv fpga_file ${board}.rbf; " \
+		"if test -e mmc 0:1 ${fpga_file}; then " \
+			"load mmc 0:1 ${kernel_addr_r} ${fpga_file}; " \
+			"fpga load 0 ${kernel_addr_r} ${filesize}; " \
+			"bridge enable; " \
+		"fi;\0" \
+	BOOTENV
+
 #endif
+
+#define CONFIG_BOOTCOMMAND "run fatscript; run fpga_cfg; run distro_bootcmd"
+
+/* The rest of the configuration is shared */
+#include <configs/socfpga_common.h>
+
 ```
 
-Quick explanation of what we're doing here. `distro_bootcmd` sets up the u-boot sequence of commands and at the end launches the kernel with `run bootcm_${target}`.
+Quick explanation of what is happening here. `CONFIG_BOOTFILE` and `CONFIG_BOOTARGS` sets up default arguments that can be overided later on. If you look at `include/configs/socfpga_common.h` you will see a lot of the same settings in there as you do here. Since I am defining CFG_EXTRA_ENV_SETTINGS here and no in `include/configs/socfpga_common.h` that code is never used and must be copied over to still be used. I go on to define CONFIG_BOOTCOMMAND to call my custom scripts and then finally distro_bootcmd.
 
-We're modifying this command to do two things.
+I added these to do two things:
 
-1.  First, we check to see if a u-boot script file exists on the fat partition called `u-boot.scr`. If it does we load it into memory at `0x2000000` and then run it using the `source` command.
+1.  In the script that is named `fatscript` we check to see if the script file, defined in `scriptfile` a few lines above, exists in the fat partition of the MMC drive. If this file is found, we load it onto `scriptaddr` which is defined as `0x02100000`.
 
     Having the check for `u-boot.scr` is helpful to override the default sequence of commands by creating a boot script image file `u-boot.scr` and saving it in the fat partition. This way we don't have to compile u-boot and burn it to the sd card every time we need some custom configuration. This may come in handy in the future.
 
-1.  Next, if the script file is not found, then we check if `soc_system.rbf` exists on the fat partition. If it does then, we load the design named `soc_system.rbf` into memory address `0x2000000` and in the next step, copy `0x700000` bytes from the memory location `0x2000000` into the FPGA. I obtained these numbers by looking at [this article](https://rocketboards.org/foswiki/Documentation/EmbeddedLinuxBeginnerSGuide) (Section titled "Writing the boot script") and by looking up in the source code.
+1.  Next in the boot process we check for if `fpga_file` exists on the fat partition, if this file does not exist we assume the file to be named ${board}.rbf and proceed. We try to load the rbf file from the fat partition to `kernel_addr_r`. We then load the rbf file from `kernel_addr_r` to the FPGA.
 
-    Presumably, `0x2000000` is the RAM address where we want to copy the contents of the binary and `0x700000` is the size of the binary in bytes. But where does `0x700000` or `7MB` come from? Well, if we look in the [Cyclone V Device Data Sheet](https://www.intel.com/content/dam/www/programmable/us/en/pdfs/literature/hb/cyclone-v/cv_51002.pdf) on page 78, we see a table showing the size of `.rbf` configuration files in bits. Here is a screenshot:
+    Presumably,  `0x700000` is the size of the binary in bytes. But where does `0x700000` or `7MB` come from? Well, if we look in the [Cyclone V Device Data Sheet](https://www.intel.com/content/dam/www/programmable/us/en/pdfs/literature/hb/cyclone-v/cv_51002.pdf) on page 78, we see a table showing the size of `.rbf` configuration files in bits. Here is a screenshot:
 
     ![](images/uboot_rbf_size.png)
 
@@ -199,44 +279,26 @@ Now let's assign this to our device. To do this, open the following file in a te
 
 ```bash
 cd $DEWD/u-boot
-nano include/configs/socfpga_common.h
+nano include/configs/socfpga_de10_nano.h
 ```
 
 Scroll down to the section that has the following lines:
 
 ```bash
-#ifndef CONFIG_EXTRA_ENV_SETTINGS
-#define CONFIG_EXTRA_ENV_SETTINGS \
-        "fdtfile=" CONFIG_DEFAULT_FDT_FILE "\0" \
-        "bootm_size=0xa000000\0" \
-        "kernel_addr_r="__stringify(CONFIG_SYS_LOAD_ADDR)"\0" \
-        "fdt_addr_r=0x02000000\0" \
-        "scriptaddr=0x02100000\0" \
-        "pxefile_addr_r=0x02200000\0" \
-        "ramdisk_addr_r=0x02300000\0" \
-        "socfpga_legacy_reset_compat=1\0" \
-        BOOTENV
-
-#endif
+	"ramdisk_addr_r=0x02300000\0" \
+    "socfpga_legacy_reset_compat=1\0" \
+	"prog_core=if load mmc 0:1 ${loadaddr} fit_spl_fpga.itb;" \
+		"then fpga loadmk 0 ${loadaddr}:fpga-core-1; fi\0" \
 ```
 
 Modify this to add the U-Boot environment variable `ethaddr` as shown below. Don't forget the `\0` at the end as well as the `\` or it won't work.
 
 ```bash
-#ifndef CONFIG_EXTRA_ENV_SETTINGS
-#define CONFIG_EXTRA_ENV_SETTINGS \
-        "fdtfile=" CONFIG_DEFAULT_FDT_FILE "\0" \
-        "bootm_size=0xa000000\0" \
-        "kernel_addr_r="__stringify(CONFIG_SYS_LOAD_ADDR)"\0" \
-        "fdt_addr_r=0x02000000\0" \
-        "scriptaddr=0x02100000\0" \
-        "pxefile_addr_r=0x02200000\0" \
-        "ramdisk_addr_r=0x02300000\0" \
-        "socfpga_legacy_reset_compat=1\0" \
-        "ethaddr=56:6b:20:e9:4a:47\0" \
-        BOOTENV
-
-#endif
+	"ramdisk_addr_r=0x02300000\0" \
+    "socfpga_legacy_reset_compat=1\0" \
+	"ethaddr=56:6b:20:e9:4a:47\0" \
+	"prog_core=if load mmc 0:1 ${loadaddr} fit_spl_fpga.itb;" \
+		"then fpga loadmk 0 ${loadaddr}:fpga-core-1; fi\0" \
 ```
 
 You can save the file and exit. We're done with this step. Let's commit our changes:
@@ -276,7 +338,7 @@ make ARCH=arm menuconfig
 Now we can build U-Boot. Run the following command:
 
 ```bash
-make ARCH=arm -j 24
+make ARCH=arm -j 12
 ```
 
 Once the compilation completes, it should have generated the file `u-boot-with-spl.sfp`. This is the bootloader combined with the secondary program loader (spl).
