@@ -62,10 +62,10 @@ git checkout socfpga-6.6.37-lts
 
 There are a few changes to the kernel source that need to be made, such as adding a device tree file to the kernel for the DE10-Nano and changing the configuration to use the heartbeat LED.
 
-First open the file `socfpga_cyclone5_de10_nano_soc.dts` with the command:
+First open the file `socfpga_cyclone5_de10_nano.dts` with the command:
 
 ```bash
-nano arch/arm/boot/dts/intel/socfpga/socfpga_cyclone5_de10_nano_soc.dts
+nano arch/arm/boot/dts/intel/socfpga/socfpga_cyclone5_de10_nano.dts
 ```
 
 Copy the following into the file and save it:
@@ -168,33 +168,32 @@ Copy the following into the file and save it:
 };
 
 &i2c0 {
-        status = "okay";
-        speed-mode = <0>;
+	status = "okay";
+	speed-mode = <0>;
 
-        adxl345: adxl345@53 {
-                compatible = "adi,adxl34x";
-                reg = <0x53>;
+	adxl345: adxl345@53 {
+		compatible = "adi,adxl345";
+		reg = <0x53>;
 
-                interrupt-parent = <&portc>;
-                interrupts = <3 2>;
-        };
+		interrupt-parent = <&portc>;
+		interrupts = <3 2>;
+	};
 };
 
 &i2c1 {
-        status = "okay";
-        speed-mode = <0>;
+	status = "okay";
+	speed-mode = <0>;
 };
 
 &i2c2 {
-        status = "okay";
-        speed-mode = <0>;
+	status = "okay";
+	speed-mode = <0>;
 };
 
 &i2c3 {
-        status = "okay";
-        speed-mode = <0>;
+	status = "okay";
+	speed-mode = <0>;
 };
-
 
 &mmc0 {
 	vmmc-supply = <&regulator_3_3v>;
@@ -206,8 +205,32 @@ Copy the following into the file and save it:
 	status = "okay";
 };
 
+&uart1 {
+        status = "okay";
+};
+
 &usb1 {
 	status = "okay";
+};
+
+&fpga_bridge0 {
+  status = "okay";
+  bridge-enable = <1>;
+};
+
+&fpga_bridge1 {
+  status = "okay";
+  bridge-enable = <1>;
+};
+
+&fpga_bridge2 {
+  status = "okay";
+  bridge-enable = <1>;
+};
+
+&fpga_bridge3 {
+  status = "okay";
+  bridge-enable = <1>;
 };
 ```
 
@@ -250,6 +273,14 @@ CONFIG_FB_SIMPLE=y
 CONFIG_FB_CFB_FILLRECT=y
 CONFIG_FB_CFB_COPYAREA=y
 CONFIG_FB_CFB_IMAGEBLIT=y
+CONFIG_LOCALVERSION_AUTO=n
+CONFIG_OVERLAY_FS=y
+CONFIG_OVERLAY_FS_REDIRECT_DIR=y
+CONFIG_OVERLAY_FS_REDIRECT_ALWAYS_FOLLOW=y
+CONFIG_OVERLAY_FS_INDEX=y
+CONFIG_OVERLAY_FS_NFS_EXPORT=y
+CONFIG_OVERLAY_FS_METACOPY=y
+CONFIG_OVERLAY_FS_DEBUG=y
 ```
 
 ### Configure the Kernel
@@ -278,32 +309,6 @@ There are a few ways to flash your FPGA design. The traditional way is to just c
 To be able to do this, we need to enable the **Overlay filesystem support** and **Userspace-driven configuration filesystem** in the kernel. If you don't intend to flash your FPGA from linux then feel free to skip these.
 
 > **NOTE** - If you don't need these 2 options, you can just use the mainstream linux source to build your kernel instead of the altera-opensource version. Just clone the repository at `github.com/torvalds/linux`.
-
-### Kernel Options
-
-#### Do not append version
-
-Under `General setup` and uncheck `Automatically append version information to the version string`. This makes it easier to test different versions of the drivers. Better to keep it enabled in production though.
-
-![](images/kernel_config_append_version.png)
-
-#### Enable Overlay filesystem support
-
-Under `File systems`, enable `Overlay filesystem support` and all the options under it:
-
-![](images/kernel_config_overlay_filesystem.png)
-
-#### Enable CONFIGFS
-
-This should be enabled already, but if not, do enable it:
-
-![](images/kernel_config_userspace.png)
-
-Feel free to look through the other options and when done, press the right-arrow key until `Exit` is highlighted and press enter. Keep exiting until you get a window that asks if you want to save config. Choose yes and that will exit you out of the utility.
-
-#### (Optional) Enable options for WIFI
-
-You can set up the necessary options needed for WIFI as explained [here](./%5BOptional%5D-Setting-up-Wifi.md). This can be done later as well.
 
 ### Build the Kernel image
 

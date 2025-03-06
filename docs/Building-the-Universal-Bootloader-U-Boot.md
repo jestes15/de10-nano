@@ -11,12 +11,10 @@
 - [Steps](#steps)
   - [Getting the sources](#getting-the-sources)
   - [Configuring](#configuring)
-    - [Part 1 - Customizing the bootloader for the DE10-Nano](#part-1---customizing-the-bootloader-for-the-de10-nano)
-      - [Creating a new branch](#creating-a-new-branch)
-	  - [Add I2C Buses to DTS File](#add-i2c-buses-to-dts-file)
-      - [Configure U-Boot to flash FPGA automatically at boot time](#configure-u-boot-to-flash-fpga-automatically-at-boot-time)
-      - [Asssign a permanent mac address to the ethernet device](#asssign-a-permanent-mac-address-to-the-ethernet-device)
-    - [Part 2 - Finish the configuration](#part-2---finish-the-configuration)
+	- [Creating a new branch](#creating-a-new-branch)
+	- [Add I2C Buses to DTS File](#add-i2c-buses-to-dts-file)
+	- [Configure U-Boot to flash FPGA automatically at boot time](#configure-u-boot-to-flash-fpga-automatically-at-boot-time)
+	- [Asssign a permanent mac address to the ethernet device](#asssign-a-permanent-mac-address-to-the-ethernet-device)
   - [Building](#building)
 - [References](#references)
 - [Appendix](#appendix)
@@ -62,7 +60,7 @@ Clone the repository:
 
 ```bash
 cd $DEWD
-https://github.com/altera-opensource/u-boot-socfpga.git
+git clone https://github.com/altera-opensource/u-boot-socfpga.git
 ```
 
 List all the tags and select a release that you want to use. For this guide, I used the latest stable release that worked `socfpga_v2024.07`:
@@ -79,8 +77,6 @@ git checkout socfpga_v2024.07
 
 ### Configuring
 
-#### Part 1 - Customizing the bootloader for the DE10-Nano
-
 Here we will make a few changes to the source code to make it work more nicely with our DE10-Nano, viz.,
 
 - Enable 4 I2C busses, one for the ADXL345 and one for the HDMI controller
@@ -89,7 +85,7 @@ Here we will make a few changes to the source code to make it work more nicely w
 
 These steps are optional i.e. you can skip them and your bootloader will work great and you will only lose these 2 capabilities. If you prefer to get something up and running asap, then you can skip directly to Part 2 and come back to it later when you feel you need it.
 
-##### Creating a new branch
+#### Creating a new branch
 
 We want to keep our changes separate from the branch synced with the repo. So let's create a new branch:
 
@@ -97,7 +93,7 @@ We want to keep our changes separate from the branch synced with the repo. So le
 git checkout -b socfpga_v2024.07_custom_configuration
 ```
 
-##### Add I2C Buses to DTS File
+#### Add I2C Buses to DTS File
 
 A DTS File, or a Devicetree Control file, provides run-time configuration of U-Boot via a flattened devcietree. This feature makes it possible for a single binary to support multiple development boards.
 
@@ -163,7 +159,7 @@ git commit -m "Added mac address"
 ```
 
 
-##### Configure U-Boot to flash FPGA automatically at boot time
+#### Configure U-Boot to flash FPGA automatically at boot time
 
 One of the features of U-Boot is the ability to flash the FPGA with a binary design at boot time. If you have a design that you want running on the FPGA every time you turn on the device, this is a very useful feature. How to use this is explained in another section, but for now, we need to add some commands that will do this automatically.
 
@@ -257,7 +253,7 @@ git add .
 git commit -m "Load FPGA on boot."
 ```
 
-##### Asssign a permanent mac address to the ethernet device
+#### Asssign a permanent mac address to the ethernet device
 
 By default, the ethernet device on the DE10-Nano isn't assigned a Mac address. So it assigns a random one every time you reboot the device. Which in turn leads to a different IP address every time, which makes sshing into it a bit tedious. You could run the commands to assign the mac address at boot time as shown in the appendix, but then you'll have to do that every time you make changes to the SD Card. By adding it to the source code, you avoid both these problems.
 
@@ -310,7 +306,7 @@ git commit -m "Added mac address"
 
 > **Note**: To those familiar with version management, saving hard coded mac addresses, passwords and any other kind of sensitive data in a repository is a definite no-no. But since this is for hobby use and on my own personal router, and I only have one DE10-Nano board, it should be fine. If you are doing this for your company, you might not want to hard code the mac address in the header file, it is not scalable. Instead, you should follow the steps in the Appendix which show how to set the mac address in the U-Boot console on first boot. Also, you shouldn't rely on the random mac generator and you should actually buy some valid mac addresses. Refer to [this link](https://www.denx.de/wiki/view/DULG/WhereCanIGetAValidMACAddress) for more info.
 
-#### Part 2 - Finish the configuration
+### Building
 
 U-Boot has a number of pre-built configurations in the `configs` folder. To view all the available ones for altera, run the following command:
 
@@ -332,8 +328,6 @@ The defaults should be fine. But should you choose to fine tune the config, you 
 ```bash
 make ARCH=arm menuconfig
 ```
-
-### Building
 
 Now we can build U-Boot. Run the following command:
 

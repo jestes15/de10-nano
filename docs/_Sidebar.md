@@ -11,9 +11,7 @@
 - [The Basics](./Building-Embedded-Linux.md)
 - [Building the Universal Bootloader (U-Boot)](./Building-the-Universal-Bootloader-U-Boot.md)
 - [Building the Kernel](./Building-the-Kernel.md)
-- RootFS - Choose one:
-  - [Debian](./Debian-Root-File-System.md))
-  - [Archlinux ARM](./Archlinux-ARM-Root-File-System.md)
+- [Ubuntu 24.04 Rootfs](./Debian-Root-File-System.md)
 - [Creating the SD Card Image](./Building-the-SD-Card-image.md)
 - [(Optional) Setting up WIFI](./%5BOptional%5D-Setting-up-Wifi.md)
 
