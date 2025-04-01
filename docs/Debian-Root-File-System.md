@@ -146,12 +146,17 @@ While still in the `chroot` environment, let's do some setup so that our rootfs 
 - **Sources.list** - Use a more complete apt `sources.list`. Edit the file `/etc/apt/sources.list` and add the following. Replace `buster` with whatever version of debian you are using:
 
   ```bash
-  deb http://deb.debian.org/debian/ buster main contrib non-free
-  deb-src http://deb.debian.org/debian/ buster main contrib non-free
-  deb http://deb.debian.org/debian/ buster-updates main contrib non-free
-  deb-src http://deb.debian.org/debian/ buster-updates main contrib non-free
-  deb http://deb.debian.org/debian-security/ buster/updates main contrib non-free
-  deb-src http://deb.debian.org/debian-security/ buster/updates main contrib non-free
+  deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse
+  deb-src [arch=armhf] http://ports.ubuntu.com/ubuntu-ports jammy main restricted universe multiverse
+  
+  deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse
+  deb-src [arch=armhf] http://ports.ubuntu.com/ubuntu-ports jammy-updates main restricted universe multiverse
+  
+  deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports jammy-backports main restricted universe multiverse
+  deb-src [arch=armhf] http://ports.ubuntu.com/ubuntu-ports jammy-backports main restricted universe multiverse
+  
+  deb [arch=armhf] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse
+  deb-src [arch=armhf] http://ports.ubuntu.com/ubuntu-ports jammy-security main restricted universe multiverse
   ```
 
 - **Openssh-Server** - Install `openssh-server` so that you can `ssh` into the device:
